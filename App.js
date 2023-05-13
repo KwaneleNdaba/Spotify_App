@@ -36,9 +36,13 @@ const emotionalSongs = [
 const App = () => {
   const [query, setQuery] = useState("");
   useEffect(() => {
-   
+    getAccessToken();
     setQuery(emotionalSongs[Math.floor(Math.random() * emotionalSongs.length)]);
  
+   // searchTracks();
+    if(query == ""){
+    setQuery(emotionalSongs[Math.floor(Math.random() * emotionalSongs.length)]);
+    }
     searchTracks();
 }, []);
   const [tracks, setTracks] = useState([]);
@@ -67,6 +71,10 @@ const App = () => {
       });
       setTracks(response.data.tracks.items);
     } catch (error) {
+      getAccessToken();
+      if(query == ""){
+        setQuery(emotionalSongs[Math.floor(Math.random() * emotionalSongs.length)]);
+        }
       console.log(error);
     }
   };
@@ -97,10 +105,12 @@ const App = () => {
     }
   }
 useEffect(() => {
+
   if(query){
     searchTracks();
 
   }
+
 }, [query]);
 
       return (
