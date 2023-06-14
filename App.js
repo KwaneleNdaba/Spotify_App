@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Text, View, TextInput, TouchableOpacity, ScrollView,StyleSheet, Image } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image } from 'react-native';
 import axios from 'axios';
 import { Buffer } from 'buffer';
 import { Audio } from 'expo-av';
@@ -30,7 +30,7 @@ const emotionalSongs = [
   'All I Ask - Adele',
   'Let Her Go - Passenger',
   'Un-Break My Heart - Toni Braxton',
-  'I Don\'t Want to Miss a Thing - Aerosmith'
+  "I Don't Want to Miss a Thing - Aerosmith"
 ];
 
 const App = () => {
@@ -38,29 +38,27 @@ const App = () => {
   useEffect(() => {
     getAccessToken();
     setQuery(emotionalSongs[Math.floor(Math.random() * emotionalSongs.length)]);
- 
-   // searchTracks();
-    if(query == ""){
-    setQuery(emotionalSongs[Math.floor(Math.random() * emotionalSongs.length)]);
-    }
-    searchTracks();
-}, []);
+  }, []);
+
   const [tracks, setTracks] = useState([]);
   const [accessToken, setAccessToken] = useState('');
+  const [currentTrack, setCurrentTrack] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const soundRef = useRef(null);
 
   const getAccessToken = async () => {
-    const response = await axios.post('https://accounts.spotify.com/api/token', 
+    const response = await axios.post(
+      'https://accounts.spotify.com/api/token',
       'grant_type=client_credentials',
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`
+          Authorization: `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`
         }
       }
     );
     setAccessToken(response.data.access_token);
-  }
+  };
 
   const searchTracks = async () => {
     try {
@@ -71,15 +69,11 @@ const App = () => {
       });
       setTracks(response.data.tracks.items);
     } catch (error) {
-      getAccessToken();
-      if(query == ""){
-        setQuery(emotionalSongs[Math.floor(Math.random() * emotionalSongs.length)]);
-        }
       console.log(error);
     }
   };
 
-  const playTrack = async (previewUrl) => {
+  const playTrack = async (previewUrl, track) => {
     try {
       if (soundRef.current) {
         await soundRef.current.unloadAsync();
@@ -87,149 +81,163 @@ const App = () => {
       soundRef.current = new Audio.Sound();
       await soundRef.current.loadAsync(
         { uri: previewUrl },
-        { shouldPlay: false, positionMillis: 0 },
+        { shouldPlay: true },
         false,
         false,
         true,
         { progressUpdateIntervalMillis: 1000 }
       );
       soundRef.current.setOnPlaybackStatusUpdate((playbackStatus) => {
-        console.log("durationMillis:", playbackStatus.durationMillis);
-        console.log("positionMillis:", playbackStatus.positionMillis);
         if (playbackStatus.isLoaded && !playbackStatus.isPlaying) {
-          soundRef.current.playAsync();
+          setIsPlaying(false);
+          setCurrentTrack(null);
         }
       });
+      setIsPlaying(true);
+      setCurrentTrack(track);
     } catch (error) {
-      console.log('failed to load the sound', error);
+      console.log('Failed to load the sound', error);
     }
-  }
-useEffect(() => {
+  };
 
-  if(query){
-    searchTracks();
+  const pauseTrack = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.pauseAsync();
+        setIsPlaying(false);
+      }
+    } catch (error) {
+      console.log('Failed to pause the sound', error);
+    }
+  };
 
-  }
+  useEffect(() => {
+    if (query) {
+      searchTracks();
+    }
+  }, [query]);
 
-}, [query]);
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>Music</Text>
+      <View style={styles.searchContainer}>
+        <TouchableOpacity style={styles.searchIcon}>
+          <Feather name="search" size={24} color="black" />
+        </TouchableOpacity>
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Enter your emotion..."
+          onChangeText={text => setQuery(text)}
+          onSubmitEditing={searchTracks}
+          value={query}
+        />
+      </View>
 
-      return (
-      <View style={styles.container}>
-       <Text  style={styles.button}>
-    <Ionicons name="ios-arrow-back" size={30} color="white" />
-    </Text>
+      {currentTrack && (
+        <View style={styles.currentlyPlaying}>
+          <Text style={styles.currentlyPlayingText}>{currentTrack.name}</Text>
+          <TouchableOpacity onPress={pauseTrack}>
+            <Ionicons name="pause" size={24} color="black" />
+          </TouchableOpacity>
+        </View>
+      )}
 
-<Text style={styles.header}>Music</Text>
-
-<View style={styles.searchContainer}>
-<TouchableOpacity style={styles.searchIcon} >
-  <Feather name="search" size={24} color="black" />
- </TouchableOpacity>
-<TextInput
-      style={styles.searchBar}
-      placeholder="Enter your emotion..."
-      onChangeText={text => setQuery(text)}
-      onSubmitEditing={searchTracks}
-      value={query}
-      />
-</View>
-    
       <ScrollView style={styles.tracksContainer}>
-      {tracks.map(track => (
-      <TouchableOpacity
-      style={styles.track}
-      key={track.id}
-      onPress={() => playTrack(track.preview_url)}
-      >
-      <Image
-      source={{ uri: track.album.images[0].url }}
-      style={styles.albumImage}
-      />
-      <View style={styles.trackDetails}>
-      <Text style={styles.trackName}>{track.name}</Text>
-      <Text style={styles.trackArtist}>{track.artists[0].name}</Text>
-      </View>
-      <Feather name="play-circle" size={24} color="black" />
-      </TouchableOpacity>
-      ))}
+        {tracks.map(track => (
+          <TouchableOpacity
+            style={styles.track}
+            key={track.id}
+            onPress={() => playTrack(track.preview_url, track)}
+          >
+            <Image
+              source={{ uri: track.album.images[0].url }}
+              style={styles.albumImage}
+            />
+            <View style={styles.trackDetails}>
+              <Text style={styles.trackName}>{track.name}</Text>
+              <Text style={styles.trackArtist}>{track.artists[0].name}</Text>
+            </View>
+            {!isPlaying && currentTrack && currentTrack.id === track.id ? (
+              <Feather name="play-circle" size={24} color="black" />
+            ) : (
+              <Feather name="pause-circle" size={24} color="black" />
+            )}
+          </TouchableOpacity>
+        ))}
       </ScrollView>
-      </View>
-      )
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: 'lightgray'
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginVertical: 10,
+    marginRight: 300,
+    color: 'white'
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: 'gray',
+    borderRadius: 15,
+    paddingLeft: 10,
+    width: '100%',
+    backgroundColor: '#E6E2E2',
+    borderColor: '#E6E2E2'
+  },
+  searchBar: {
+    width: '100%',
+    padding: 10
+  },
+  currentlyPlaying: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20
+  },
+  currentlyPlayingText: {
+    marginRight: 10
+  },
+  tracksContainer: {
+    width: '100%'
+  },
+  track: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 10
+  },
+  albumImage: {
+    width: 50,
+    height: 50,
+    marginRight: 10,
+    borderRadius: 10
+  },
+  trackDetails: {
+    flex: 1
+  },
+  trackName: {
+    fontWeight: 'bold'
+  },
+  trackArtist: {
+    fontStyle: 'italic'
+  },
+  button: {
+    marginRight: 350,
+    marginTop: 20
   }
+});
 
-            
-      const styles = StyleSheet.create({
-      container: {
-      flex: 1,
-      backgroundColor: '#fff',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 20,
-      backgroundColor: "lightgray"
-      },
-      title: {
-      fontSize: 28,
-      fontWeight: 'bold',
-      marginBottom: 20,
-      },
-      searchBar: {
-      
-      width: '100%',
-    
-      padding: 10,
-
-      },
-      header: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginVertical: 10,
-        marginRight: 300,
-        color: "white",
-        },
-      tracksContainer: {
-      width: '100%',
-      },
-      track: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 10,
-      marginBottom: 10,
-      borderRadius: 10,
-      },
-      albumImage: {
-      width: 50,
-      height: 50,
-      marginRight: 10,
-      borderRadius: 10,
-      },
-      trackDetails: {
-      flex: 1,
-      },
-      trackName: {
-      fontWeight: 'bold',
-      },
-      trackArtist: {
-      fontStyle: 'italic',
-      },
-      button: {
-        marginRight: 350,
-        marginTop: 20,
-
-      
-      },
-      searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 10,
-        borderWidth: 1,
-        borderColor: 'gray',
-        borderRadius: 15,
-        paddingLeft:10,
-        width: "100%",
-        backgroundColor: "#E6E2E2",
-        borderColor: "#E6E2E2",
-        
-      },
-      });
-      
-      export default App;
+export default App;
